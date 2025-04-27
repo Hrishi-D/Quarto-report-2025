@@ -1,0 +1,187 @@
+---
+title: "UNICEF Assignment - Global Health Trends: An Analysis of Infant Mortality, Life Expectancy, and Economic Development"
+subtitle: Quarto Report - 2025
+author: Hrishikesh Raghuvir Dharmadhikari - DCU ID - 11928
+date: last-modified
+date format: "MM-DD-YYYY"
+format: 
+   html:
+     embed-resources: true 
+     smooth-scroll: true
+     font-family: Roboto
+     toc: true
+     toc-title: Report Contents
+     toc-depth: 3
+     toc-location: left
+     code-fold: true
+     code-line-numbers: true
+     code-tools: true
+     code-link: true
+     code-highlight-style: solarized-dark
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## Introduction
+This **UNICEF** report examines global health disparities, focusing on ***Infant mortality and the influence of economic development***. The analysis incorporates visualizations of infant death distribution, life expectancy trends, and the relationship between GDP per capita and life expectancy to highlight key challenges and progress in global health.
+
+## Global Infant Mortality Overview
+**Global Distribution of Infant Mortality** 
+```{python}
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import IPython
+import polars as pl
+from plotnine import *
+import pandas as pd
+
+df1 = pd.read_csv("unicef_indicator_1.csv")
+df2 = pd.read_csv("unicef_metadata (1).csv")
+
+# Map-shape
+world = gpd.read_file("https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/world-administrative-boundaries/exports/shp")
+
+# Filter and aggregate data for infant deaths up to the year 2019
+infant_deaths_sum = df1[(df1['time_period'] <= 2019) & (df1['indicator'] == 'Infant deaths')].groupby('country', as_index=False)['obs_value'].sum()
+
+# Merged aggregated infant deaths data with shapefile
+map_infant_deaths_sum = world.merge(infant_deaths_sum, left_on="name", right_on="country", how="outer")
+
+# Plot the world map with aggregated infant deaths data
+fig, ax = plt.subplots(figsize=(12, 6))
+map_infant_deaths_sum.plot(
+    column='obs_value',
+    cmap='OrRd',
+    linewidth=0.5,
+    edgecolor='black',
+    ax=ax,
+    legend=True,
+    legend_kwds={"label": "Total Infant Deaths (Up to 2019)"},
+    missing_kwds={"color": "lightgrey", "label": "No data"}
+)
+
+
+ax.set_title("World Map: Total Infant Deaths per Country (Up to 2019)", fontsize=16)
+ax.axis('off')
+plt.tight_layout()
+plt.show()
+```
+
+The world map illustrates the total number of infant deaths per country up to 2019. India is visibly marked with the darkest shade, indicating the highest total infant deaths. Neighboring countries like Pakistan and China, along with several African nations, also exhibit elevated totals, although less pronounced than India. This pattern underscores that infant mortality remains a significant challenge in South Asia and parts of Africa, potentially influenced by large populations and limited access to healthcare.  According to the graph, India has the highest number of infant deaths, exceeding ***150 million***, while China and Nigeria follow, each with totals approaching ***50 million***.
+
+## Life Expectancy Trends 
+**Life Expectancy Trends: India, Ireland, and China** 
+```{python}
+import pandas as pd
+from plotnine import (
+    ggplot, aes, geom_line, geom_point,
+    theme_minimal, labs, scale_color_brewer,
+    theme, element_text
+)
+
+# Load dataset
+df1 = pd.read_csv("unicef_indicator_1.csv")
+df2 = pd.read_csv("unicef_metadata (1).csv")
+
+df2['Life expectancy at birth, total (years)'] = pd.to_numeric(df2['Life expectancy at birth, total (years)'], errors='coerce')
+
+# Filter for India, Ireland, and China
+focus_countries = ["India", "Ireland", "China"]
+filtered_df = df2[
+    (df2["country"].isin(focus_countries)) &
+    (df2["Life expectancy at birth, total (years)"].notna())
+]
+
+# keeping years after 1990 (less clutter)
+filtered_df = filtered_df[filtered_df["year"] >= 1990]
+
+# Sorted
+filtered_df = filtered_df.sort_values(["country", "year"])
+filtered_df = filtered_df[filtered_df["year"] % 10 == 0]
+
+
+(
+    ggplot(filtered_df, aes(x="year", y="Life expectancy at birth, total (years)", color="country")) +
+    geom_line(size=1.5) +
+    geom_point(size=2.5, alpha=0.8, shape='o') +
+    scale_color_brewer(type='qual', palette='Set1') +
+    labs(
+        title="Life Expectancy (1990–Present): India, Ireland, and China",
+        x="Year",
+        y="Life Expectancy (Years)",
+        color="Country"
+    ) +
+    theme_minimal() 
+   
+)
+```
+
+The line graph compares life expectancy trends from 1990 to 2020 for India, Ireland, and China. Ireland consistently shows the highest life expectancy, starting above 75 years in 1990 and increasing to over 83 years by 2020. China's life expectancy rose from nearly 68 years to over 77 years during the same period. India, beginning at around 58 years, demonstrates substantial improvement, reaching just above 70 years by 2020.  The persistent gap between India and the other two countries highlights ongoing challenges in public health and economic development, even with significant improvements over the three decades.
+
+## Economic Context: GDP and Life Expectancy
+**Relationship Between GDP per Capita and Life Expectancy**
+```{python}
+(ggplot(data=df2)
++ aes(x="GDP per capita (constant 2015 US$)", y="Life expectancy at birth, total (years)", color='country' )
+  + geom_point()
+  + geom_smooth(method='lm', color='blue')
+  + guides(color="none")
+
+)
+```
+
+The scatterplot illustrates the relationship between GDP per capita and life expectancy at birth across various countries. The plot reveals a positive correlation, with life expectancy generally increasing as GDP per capita rises. However, the relationship plateaus at higher GDP levels, indicating diminishing returns.  Countries with a GDP per capita above $50,000 tend to cluster around a life expectancy of 75-85 years, with little additional gain despite increased wealth, suggesting that factors beyond economic prosperity, such as healthcare quality and access, play a significant role.
+
+
+## Comparative Analysis
+**Synthesis and Discussion** 
+
+```{python}
+
+import IPython
+import polars as pl
+from plotnine import *
+import pandas as pd
+
+df1 = pd.read_csv("unicef_indicator_1.csv")
+df2 = pd.read_csv("unicef_metadata (1).csv")
+
+df1['obs_value'] = pd.to_numeric(df1['obs_value'], errors='coerce')
+
+df1_grouped = df1.groupby('country', as_index=False)['obs_value'].sum()
+top_10_countries = df1_grouped.nlargest(10, 'obs_value')
+
+(ggplot(top_10_countries)
+ + aes(x='reorder(country, obs_value)', y='obs_value')  # Use obs_value for ascending order
+ + geom_bar(stat='identity', fill='skyblue')
+ + coord_flip()  # Horizontal bars
+ + theme_minimal()
+ + labs(
+  title="Top 10 Countries by Infant Deaths (2019)",
+  x='Country',
+  y='Infant Deaths (thousands)'
+ )
+)
+
+```
+
+The visualizations collectively highlight persistent regional disparities and the complex interplay between economic development and health outcomes. While the life expectancy trends show significant progress in countries like India and China, these gains must be contextualized with the realities of infant mortality rates and the impact of economic disparities. Targeted interventions and sustained investment in healthcare infrastructure remain crucial for addressing global health challenges effectively.
+
+
+## Conclusion
+
+In summary, the report underscores the interconnectedness of economic advancement and public health. Addressing disparities requires multifaceted approaches, including sustained investments in healthcare, education, and targeted interventions, to reduce infant mortality and enhance life expectancy globally.
+
+
+
+
+
+
+
+
+
+
+
